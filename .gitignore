@@ -1,0 +1,6 @@
+﻿bin/
+obj/
+.dart_tool/
+build/
+.idea/
+.vs/

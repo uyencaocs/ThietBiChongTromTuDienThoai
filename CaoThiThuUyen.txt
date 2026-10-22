@@ -1,0 +1,252 @@
+================================================================================
+HỌ VÀ TÊN: CAO THỊ THU UYÊN
+MÃ SỐ SINH VIÊN: 2380616457
+ĐỀ TÀI: HỆ THỐNG CAMERA GIÁM SÁT AN NINH AI TÍCH HỢP DISCORD & XÁC THỰC SINH TRẮC HỌC
+================================================================================
+
+PHẦN 1: TỔNG HỢP CÁC CHỨC NĂNG ĐÃ LÀM ĐƯỢC
+--------------------------------------------------------------------------------
+A. BACKEND (ASP.NET CORE 8 Web API + Entity Framework Core + SQL Server):
+1. Quản lý tài khoản & Xác thực bảo mật:
+   - Đăng ký tài khoản người dùng, mã hóa mật khẩu an toàn bằng thuật toán BCrypt.
+   - Phân quyền người dùng (Role-based Authorization: Admin, User).
+   - Đăng nhập xác thực 2 bước (2FA): Tạo mã OTP ngẫu nhiên 6 chữ số, lưu trữ đệm trong MemoryCache với thời hạn hiệu lực 3 phút.
+   - Tích hợp gửi email mã OTP tự động qua giao thức SMTP (Gmail / MailKit).
+   - Cấp phát JWT (JSON Web Token) thời hạn 2 giờ, nhúng đầy đủ Claim định danh và quyền hạn để bảo vệ các API riêng tư.
+
+2. Quản lý thiết bị & Cấu hình giám sát (Devices & Settings):
+   - Đăng ký thiết bị giám sát liên kết với từng tài khoản người dùng.
+   - Cung cấp API cập nhật cấu hình thiết bị: Ngưỡng phát hiện độ ồn (Noise Threshold), thiết lập khung giờ bật/tắt chế độ canh gác (ActiveFrom - ActiveTo).
+
+3. Quản lý sự kiện truy cập (Access Logs):
+   - Ghi nhận lịch sử các sự kiện an ninh (phát hiện chuyển động, phát hiện người lạ) kèm ảnh và mốc thời gian.
+   - Truy xuất danh sách 50 lịch sử gần nhất theo mã thiết bị.
+
+4. Quản lý hình ảnh an ninh (Camera & Images):
+   - Nhận ảnh tải lên khẩn cấp từ camera di động (`multipart/form-data`), lưu trữ vật lý trong `wwwroot/images`.
+   - Cung cấp API xem danh sách toàn bộ ảnh bằng chứng đã chụp.
+   - API phân quyền xóa ảnh vi phạm/cũ chỉ dành riêng cho quyền Quản trị viên (Admin).
+   - Cho phép tải/xem trực tiếp hình ảnh qua Web server tĩnh.
+
+5. Tích hợp Discord Bot & Discord Webhook cảnh báo hai chiều:
+   - Cài đặt thư viện `Discord.Net` v3.20.2 kết nối WebSocket Gateway trực tiếp với Discord.
+   - Tự động đẩy tin nhắn cảnh báo kèm file ảnh bằng chứng thực tế lên kênh Discord.
+   - Tạo các nút bấm tương tác trực tiếp trên Discord: "Xác nhận người nhà" (xanh lá) và "Báo động" (đỏ).
+   - Lắng nghe sự kiện người dùng bấm nút trên Discord, tự động khóa nút và cập nhật thông tin người xử lý vào tin nhắn.
+   - Cơ chế tự động Fallback: Khi chưa có BotToken, hệ thống tự động gửi qua Discord Webhook, đảm bảo không bao giờ thất lạc cảnh báo.
+   - Cung cấp API điều khiển trạng thái cảnh báo (`/api/Alerts/{id}`) để điện thoại camera nhận lệnh từ xa từ Discord.
+
+B. FRONTEND (Ứng dụng Flutter - Android Camera Client):
+1. Giao diện người dùng & Trải nghiệm:
+   - Thiết kế giao diện Dark Mode cao cấp, thống nhất kiểu dáng nút bấm xanh dương (ElevatedButton blue), chữ trắng, bo góc hiện đại.
+   - Màn hình Chào mừng (Welcome), Đăng nhập (Login), Đăng ký (Register), Xác thực OTP (OtpScreen), Bảng điều khiển (DashboardScreen), Camera giám sát (CameraScreen).
+2. Xác thực Sinh trắc học (Biometric Authentication):
+   - Tích hợp thư viện `local_auth` xác thực vân tay / Face ID trên thiết bị vật lý để đăng nhập nhanh vào hệ thống.
+   - Xử lý Fallback linh hoạt: Hiển thị SnackBar nổi kèm nút "Thử lại" khi xác thực thất bại hoặc người dùng hủy.
+3. Trí tuệ nhân tạo nhận diện khuôn mặt (AI Face Classification):
+   - Tích hợp `google_mlkit_face_detection` quét và phát hiện khuôn mặt theo thời gian thực từ camera stream.
+   - Cơ chế phân loại "Người nhà" vs "Người lạ": Tải tập dữ liệu vector đặc trưng từ `assets/known_faces.json`, tính toán độ tương đồng Cosine (Cosine Similarity) với ngưỡng cấu hình `kFaceMatchThreshold = 0.80`.
+   - Người nhà: Không báo động.
+   - Người lạ: Tự động kích hoạt chu kỳ cảnh báo an ninh.
+4. Cảm biến chống trộm & Rung lắc:
+   - Sử dụng cảm biến gia tốc `sensors_plus` phát hiện rung lắc hoặc di chuyển thiết bị trái phép (ngưỡng gia tốc > 15.0).
+5. Tương tác giọng nói & Phản hồi thời gian thực từ Discord:
+   - Tích hợp `flutter_tts` phát giọng nói tiếng Việt đếm ngược yêu cầu mật khẩu xác thực.
+   - Tự động chụp ảnh gửi lên ASP.NET Core qua mạng LAN (`http://192.168.0.41:5235`).
+   - Lắng nghe phản hồi từ nút bấm Discord trong thời gian đếm ngược:
+     * Nếu bấm "Xác nhận người nhà" -> Hủy báo động và tiếp tục canh gác.
+     * Nếu bấm "Báo động" -> Phát loa cảnh báo khẩn cấp.
+6. Cấu hình mạng LAN & Tường lửa:
+   - Hỗ trợ kết nối LAN qua IP `192.168.0.41:5235`, cấu hình `usesCleartextTraffic` trên Android.
+   - Cung cấp script PowerShell `setup_firewall.ps1` tự động mở cổng 5235 trên Windows Firewall.
+
+
+================================================================================
+PHẦN 2: DANH SÁCH TOÀN BỘ LINK API HỆ THỐNG (API ENDPOINTS)
+--------------------------------------------------------------------------------
+* Địa chỉ gốc mạng LAN (Base URL): http://192.168.0.41:5235
+* Địa chỉ chạy máy cục bộ (Localhost): http://localhost:5235
+* Trang tài liệu & kiểm thử trực quan (Swagger UI): http://192.168.0.41:5235/swagger
+
+--------------------------------------------------------------------------------
+1. NHÓM API XÁC THỰC NGƯỜI DÙNG (AUTHENTICATION) - [AuthController]
+--------------------------------------------------------------------------------
+1.1. Đăng ký tài khoản
+  - Link API: POST http://192.168.0.41:5235/api/Auth/register
+  - Xác thực: Public (Không yêu cầu Token)
+  - Headers: Content-Type: application/json
+  - Body (JSON):
+    {
+      "email": "user@example.com",
+      "password": "Password123@",
+      "role": "User" // Hoặc "Admin"
+    }
+  - Phản hồi thành công (200 OK):
+    {
+      "message": "Đăng ký thành công!",
+      "role": "User"
+    }
+
+1.2. Đăng nhập hệ thống (Gửi mã OTP về email)
+  - Link API: POST http://192.168.0.41:5235/api/Auth/login
+  - Xác thực: Public (Không yêu cầu Token)
+  - Headers: Content-Type: application/json
+  - Body (JSON):
+    {
+      "email": "user@example.com",
+      "password": "Password123@"
+    }
+  - Phản hồi thành công (200 OK):
+    "Vui lòng kiểm tra email để lấy mã OTP."
+
+1.3. Xác thực mã OTP và nhận JWT Token
+  - Link API: POST http://192.168.0.41:5235/api/Auth/verify-otp
+  - Xác thực: Public (Không yêu cầu Token)
+  - Headers: Content-Type: application/json
+  - Body (JSON):
+    {
+      "email": "user@example.com",
+      "otp": "123456"
+    }
+  - Phản hồi thành công (200 OK):
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+
+--------------------------------------------------------------------------------
+2. NHÓM API CAMERA & HÌNH ẢNH AN NINH - [CameraController]
+--------------------------------------------------------------------------------
+2.1. Tải ảnh camera lên máy chủ & Kích hoạt cảnh báo Discord
+  - Link API: POST http://192.168.0.41:5235/api/Camera/upload
+  - Xác thực: Yêu cầu JWT Token (Bearer Token)
+  - Headers: 
+    * Authorization: Bearer {token}
+    * Content-Type: multipart/form-data
+  - Form Data:
+    * file: [Chọn file ảnh chụp .jpg / .png]
+    * isEmergency: "true" (hoặc "false")
+    * reason: "NGUOI_LA" (hoặc "RUNG_LAC")
+  - Phản hồi thành công (200 OK):
+    {
+      "message": "Lưu hình ảnh thành công",
+      "filePath": "/images/abc-xyz.jpg",
+      "alertId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    }
+
+2.2. Lấy danh sách toàn bộ ảnh bằng chứng đã lưu
+  - Link API: GET http://192.168.0.41:5235/api/Camera/images
+  - Xác thực: Yêu cầu JWT Token (Bearer Token)
+  - Headers: Authorization: Bearer {token}
+  - Phản hồi thành công (200 OK):
+    [
+      {
+        "fileName": "f47ac10b-58cc-4372-a567-0e02b2c3d479_captured.jpg",
+        "url": "/images/f47ac10b-58cc-4372-a567-0e02b2c3d479_captured.jpg"
+      }
+    ]
+
+2.3. Xóa ảnh bằng chứng (Dành riêng cho Admin)
+  - Link API: DELETE http://192.168.0.41:5235/api/Camera/images/{fileName}
+  - Ví dụ: DELETE http://192.168.0.41:5235/api/Camera/images/my_photo.jpg
+  - Xác thực: Yêu cầu JWT Token với Role = "Admin"
+  - Headers: Authorization: Bearer {token}
+  - Phản hồi thành công (200 OK):
+    {
+      "message": "Xóa thành công."
+    }
+
+2.4. Kiểm tra nhanh gửi tin nhắn Discord
+  - Link API: GET http://192.168.0.41:5235/api/Camera/test-discord?reason=NGUOI_LA
+  - Xác thực: Public (AllowAnonymous)
+  - Phản hồi thành công (200 OK):
+    {
+      "message": "Cảnh báo Discord đã được gửi.",
+      "alertId": "...",
+      "isBotConnected": true
+    }
+
+--------------------------------------------------------------------------------
+3. NHÓM API QUẢN LÝ CẢNH BÁO DISCORD HAI CHIỀU - [AlertsController]
+--------------------------------------------------------------------------------
+3.1. Lấy trạng thái cảnh báo mới nhất
+  - Link API: GET http://192.168.0.41:5235/api/Alerts/latest
+  - Xác thực: Public
+  - Phản hồi thành công (200 OK):
+    {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "reason": "NGUOI_LA",
+      "imageUrl": "/images/example.jpg",
+      "createdAt": "2026-10-22T15:45:00Z",
+      "status": "Pending",
+      "handledBy": null,
+      "handledAt": null
+    }
+
+3.2. Lấy trạng thái cảnh báo theo mã ID (Điện thoại dùng để lắng nghe nút bấm Discord)
+  - Link API: GET http://192.168.0.41:5235/api/Alerts/{id}
+  - Ví dụ: GET http://192.168.0.41:5235/api/Alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6
+  - Xác thực: Public
+  - Trạng thái phản hồi:
+    * "Pending": Đang chờ người dùng bấm nút trên Discord.
+    * "ConfirmedHome": Người dùng đã bấm nút "Xác nhận người nhà".
+    * "AlarmTriggered": Người dùng đã bấm nút "Báo động".
+
+3.3. Kích hoạt thử cảnh báo hệ thống
+  - Link API: POST http://192.168.0.41:5235/api/Alerts/test?reason=NGUOI_LA
+  - Xác thực: Public
+
+--------------------------------------------------------------------------------
+4. NHÓM API QUẢN LÝ THIẾT BỊ GIÁM SÁT - [DeviceController]
+--------------------------------------------------------------------------------
+4.1. Đăng ký thiết bị giám sát mới
+  - Link API: POST http://192.168.0.41:5235/api/Device
+  - Xác thực: Yêu cầu JWT Token
+  - Headers: 
+    * Authorization: Bearer {token}
+    * Content-Type: application/json
+  - Body (JSON):
+    {
+      "deviceName": "Camera Cửa Trước"
+    }
+  - Phản hồi thành công (200 OK): Thông tin thiết bị và cấu hình giám sát mặc định.
+
+4.2. Lấy danh sách thiết bị của người dùng hiện tại
+  - Link API: GET http://192.168.0.41:5235/api/Device
+  - Xác thực: Yêu cầu JWT Token
+  - Headers: Authorization: Bearer {token}
+
+4.3. Cập nhật cấu hình hoạt động của thiết bị
+  - Link API: PUT http://192.168.0.41:5235/api/Device/{id}/settings
+  - Ví dụ: PUT http://192.168.0.41:5235/api/Device/8f6f69a9-34b9-478a-a437-0cfc34a2e5d1/settings
+  - Xác thực: Yêu cầu JWT Token
+  - Body (JSON):
+    {
+      "noiseThreshold": 60.5,
+      "activeFrom": "22:00:00",
+      "activeTo": "06:00:00"
+    }
+
+--------------------------------------------------------------------------------
+5. NHÓM API LỊCH SỬ TRUY CẬP & SỰ KIỆN - [AccessLogController]
+--------------------------------------------------------------------------------
+5.1. Tạo mới bản ghi lịch sử sự kiện
+  - Link API: POST http://192.168.0.41:5235/api/AccessLog
+  - Xác thực: Yêu cầu JWT Token
+  - Body (JSON):
+    {
+      "deviceId": "8f6f69a9-34b9-478a-a437-0cfc34a2e5d1",
+      "eventType": "PhatHienNguoiLa",
+      "imageUrl": "/images/intruder_01.jpg"
+    }
+
+5.2. Lấy danh sách 50 lịch sử sự kiện gần nhất của một thiết bị
+  - Link API: GET http://192.168.0.41:5235/api/AccessLog/{deviceId}
+  - Ví dụ: GET http://192.168.0.41:5235/api/AccessLog/8f6f69a9-34b9-478a-a437-0cfc34a2e5d1
+  - Xác thực: Yêu cầu JWT Token
+
+--------------------------------------------------------------------------------
+6. ĐƯỜNG DẪN WEBHOOK DISCORD ĐANG CẤU HÌNH TRỰC TIẾP
+--------------------------------------------------------------------------------
+- Link Webhook Discord:
+  https://discord.com/api/webhooks/1562730912435933206/d1-4o1PQSNvyYZRlH6EfvstjMzIn_Y-qOefKH5I87WMHoec84NuwmrjFbZTpJLveR4ko
+================================================================================
