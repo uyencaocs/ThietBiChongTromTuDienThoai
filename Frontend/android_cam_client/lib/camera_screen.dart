@@ -109,23 +109,56 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _initTts() async {
-    await flutterTts.setLanguage('vi-VN');
-    await flutterTts.setVolume(1.0);
-    await flutterTts.setSpeechRate(0.5);
-    await flutterTts.setPitch(1.0);
+    try {
+      await flutterTts.setLanguage('vi-VN');
+      await flutterTts.setVolume(1.0);
+      await flutterTts.setSpeechRate(0.5);
+      await flutterTts.setPitch(1.0);
+    } catch (e) {
+      debugPrint('TTS không khả dụng trên thiết bị ảo: $e');
+    }
+  }
+
+  int _selectedCameraIndex = 0;
+
+  Future<void> _switchCamera() async {
+    if (cameras.length < 2) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chỉ có 1 camera khả dụng. Để dùng webcam thật, cấu hình trong Android Studio Device Manager.')),
+        );
+      }
+      return;
+    }
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % cameras.length;
+    await _controller?.dispose();
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized = false;
+      });
+    }
+    await _initCamera();
   }
 
   Future<void> _initCamera() async {
-    if (cameras.isEmpty) return;
-
-    _controller = CameraController(
-      cameras[0],
-      ResolutionPreset.medium,
-      enableAudio: true,
-      imageFormatGroup: ImageFormatGroup.nv21,
-    );
-
     try {
+      if (cameras.isEmpty) {
+        cameras = await availableCameras();
+      }
+      if (cameras.isEmpty) {
+        debugPrint('Không tìm thấy camera khả dụng trên thiết bị');
+        return;
+      }
+
+      final cameraToUse = cameras[_selectedCameraIndex < cameras.length ? _selectedCameraIndex : 0];
+
+      _controller = CameraController(
+        cameraToUse,
+        ResolutionPreset.medium,
+        enableAudio: false, // Tắt audio để tránh lỗi đòi quyền RECORD_AUDIO / mic ảo crash
+        imageFormatGroup: ImageFormatGroup.nv21,
+      );
+
       await _controller!.initialize();
       if (mounted) {
         setState(() {
@@ -134,19 +167,28 @@ class _CameraScreenState extends State<CameraScreen> {
       }
       await _controller!.startImageStream(_processCameraImage);
     } catch (e) {
-      print('Lỗi khởi tạo camera: $e');
+      debugPrint('Lỗi khởi tạo camera: $e');
     }
   }
 
   void _initVibrationSensor() {
-    _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
-      if (!_isGuardingActive()) return;
+    try {
+      _accelerometerSubscription = accelerometerEventStream().listen(
+        (AccelerometerEvent event) {
+          if (!_isGuardingActive()) return;
 
-      double acceleration = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
-      if (acceleration > 15.0) {
-        _triggerAlert(reason: 'RUNG_LAC');
-      }
-    });
+          double acceleration = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+          if (acceleration > 15.0) {
+            _triggerAlert(reason: 'RUNG_LAC');
+          }
+        },
+        onError: (e) {
+          debugPrint('Cảm biến gia tốc không hỗ trợ trên thiết bị ảo: $e');
+        },
+      );
+    } catch (e) {
+      debugPrint('Lỗi đăng ký cảm biến gia tốc: $e');
+    }
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
@@ -190,7 +232,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   InputImage? _convertCameraImageToInputImage(CameraImage image) {
-    final camera = cameras[0];
+    if (cameras.isEmpty) return null;
+    final camera = cameras[_selectedCameraIndex < cameras.length ? _selectedCameraIndex : 0];
     final sensorOrientation = camera.sensorOrientation;
 
     final InputImageRotation? rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
@@ -394,6 +437,11 @@ class _CameraScreenState extends State<CameraScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.flip_camera_android),
+            tooltip: 'Đổi Camera Trước / Sau',
+            onPressed: _switchCamera,
+          ),
+          IconButton(
             icon: const Icon(Icons.dashboard),
             onPressed: () {
               Navigator.push(
@@ -407,8 +455,8 @@ class _CameraScreenState extends State<CameraScreen> {
       backgroundColor: Colors.black,
       body: _isCameraInitialized
           ? Stack(
-        children: [
-          Center(child: CameraPreview(_controller!)),
+              children: [
+                Center(child: CameraPreview(_controller!)),
           // Huy hiệu trạng thái cảnh giác
           Positioned(
             top: 16,
@@ -515,7 +563,28 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         ],
       )
-          : const Center(child: CircularProgressIndicator(color: Colors.white)),
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: Colors.tealAccent),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Đang khởi tạo camera an ninh...',
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: _initCamera,
+                    icon: const Icon(Icons.refresh, color: Colors.tealAccent),
+                    label: const Text(
+                      'Thử kết nối lại camera',
+                      style: TextStyle(color: Colors.tealAccent),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 

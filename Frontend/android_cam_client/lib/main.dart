@@ -6,16 +6,17 @@ import 'theme.dart';
 List<CameraDescription> cameras = [];
 
 Future<void> main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Khởi động giao diện ngay lập tức để không bị Android OS kill do ANR/Timeout
+  runApp(const AndroidCamApp());
+
+  // Quét camera ngầm trong nền
   try {
     cameras = await availableCameras();
   } catch (e) {
-    print('Lỗi quét camera: $e');
+    debugPrint('Lỗi quét camera ban đầu: $e');
   }
-
-  runApp(const AndroidCamApp());
 }
 
 class AndroidCamApp extends StatelessWidget {
