@@ -8,7 +8,7 @@ const String kBaseApiUrl = 'http://192.168.0.41:5235';
 /// Discord webhook placeholder. Replace `YOUR_WEBHOOK_ID` and
 /// `YOUR_WEBHOOK_TOKEN` with the actual values after creating the webhook.
 const String kDiscordWebhookUrl =
-    'https://discord.com/api/webhooks/1562730912435933206/d1-4o1PQSNvyYZRlH6EfvstjMzIn_Y-qOefKH5I87WMHoec84NuwmrjFbZTpJLveR4ko';
+    'https://192.168.0.41:45455/swagger/index.html';
 
 /// Cosine-similarity threshold for face matching. A live face whose best
 /// similarity against `assets/known_faces.json` is >= this value is treated
