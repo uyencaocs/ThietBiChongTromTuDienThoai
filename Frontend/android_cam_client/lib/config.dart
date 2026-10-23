@@ -3,12 +3,12 @@
 /// Base API URL – used by the client to communicate with the backend.
 /// When running on a real device, replace the placeholder with the LAN IP
 /// of the server (e.g., 192.168.0.41).
-const String kBaseApiUrl = 'http://192.168.0.41:5235';
+const String kBaseApiUrl = 'https://192.168.0.41:45455';
 
 /// Discord webhook placeholder. Replace `YOUR_WEBHOOK_ID` and
 /// `YOUR_WEBHOOK_TOKEN` with the actual values after creating the webhook.
 const String kDiscordWebhookUrl =
-    'https://192.168.0.41:45455/swagger/index.html';
+    'https://discord.com/api/webhooks/1562730912435933206/d1-4o1PQSNvyYZRlH6EfvstjMzIn_Y-qOefKH5I87WMHoec84NuwmrjFbZTpJLveR4ko';
 
 /// Cosine-similarity threshold for face matching. A live face whose best
 /// similarity against `assets/known_faces.json` is >= this value is treated
